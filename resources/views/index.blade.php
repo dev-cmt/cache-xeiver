@@ -1,4 +1,4 @@
-@extends('frontEnd.layouts.master')
+@extends('layouts.master')
 @section('title', 'Home')
 
 @section('body')
@@ -6,34 +6,17 @@
         <div class="images owl-carousel">
             @foreach ($sliders as $key => $item)
                 <div class="image">
-                    <a href="">
-                        <img src="{{ $item->get_img ? asset($item->get_img->file_url) : asset('frontEnd/images/no_image.png') }}"
-                            alt="">
+                    <a href="{{ $item->slider_url ?? $item->button_url ?? 'javascript:void(0)' }}">
+                        <img src="{{ !empty($item->get_img) ? asset($item->get_img->file_url) : (!empty($item->image_url) ? asset($item->image_url) : asset('frontEnd/images/no_image.png')) }}"
+                            alt="{{ $item->title ?? '' }}">
                     </a>
                 </div>
             @endforeach
         </div>
     </div>
 
-    {{-- <div class="category">
-        <div class="custom-container">
-            <h2 class="section-title">Shop By Categories</h2>
-            <div class="category-list">
-                @foreach ($categories as $cat)
-                    <div class="category-item">
-                        <a href="{{ route('single.category', $cat->id) }}">
-                            <img src="{{ $cat->file_url ? asset($cat->file_url) : asset('frontEnd/images/no_image.png') }}"
-                                alt="">
-                            <span class="category-name">{{ $cat->category_name }}</span>
-                        </a>
-                    </div>
-                @endforeach
-            </div>
-        </div>
-    </div> --}}
-
     {{-- New Arrival Section --}}
-    @if (count($new_arrivals) > 0)
+    @if (isset($new_arrivals) && count($new_arrivals) > 0)
         <div class="products">
             <div class="custom-container">
                 <h2 class="section-title text-center">New Arrival Products
@@ -44,24 +27,24 @@
                     @endif
                 </h2>
                 <div class="product-list">
-                    @foreach ($new_arrivals as $item)
+                    @foreach ($new_arrivals->take(10) as $item)
                         <div class="product-item">
-                            <a href="{{ route('single.product', $item->slug) }}">
+                            <a href="{{ route('product.details', $item->slug ?: $item->id) }}">
                                 <div class="image">
-                                    <img src="{{ $item->get_thumb ? asset($item->get_thumb->file_url) : asset('frontEnd/images/no_image.png') }}"
-                                        class="thumb-img" alt="">
-                                    @if ($item->get_hover)
-                                        <img src="{{ asset($item->get_hover->file_url) }}" alt="" class="hover-img">
+                                    <img src="{{ !empty($item->get_thumb) ? asset($item->get_thumb->file_url) : (!empty($item->image_url) ? asset($item->image_url) : asset('frontEnd/images/no_image.png')) }}"
+                                        class="thumb-img" alt="{{ $item->name ?? '' }}">
+                                    @if (!empty($item->get_hover) && !empty($item->get_hover->file_url))
+                                        <img src="{{ asset($item->get_hover->file_url) }}" alt="{{ $item->name ?? '' }}" class="hover-img">
+                                    @elseif (!empty($item->hover_image))
+                                        <img src="{{ asset($item->hover_image) }}" alt="{{ $item->name ?? '' }}" class="hover-img">
                                     @endif
-
-
                                 </div>
-                                <span class="product-name">{{ $item->name }}</span>
+                                <span class="product-name">{{ $item->name ?? '' }}</span>
                             </a>
                             <div class="absolute-product">
-                                @if ($item->sale_price > 0)
+                                @if ((float)($item->sale_price ?? 0) > 0 && (float)($item->price ?? 0) > (float)($item->sale_price ?? 0))
                                     <div class="discount">
-                                        {{ round((($item->price - $item->sale_price) / $item->price) * 100) }} %
+                                        {{ round(((($item->price - $item->sale_price) / $item->price) * 100)) }} %
                                     </div>
                                 @endif
                                 <div class="wishlist-btn">
@@ -77,24 +60,22 @@
                                 </div>
                             </div>
                             <div class="prices">
-                                @if ($item->sale_price > 0)
-                                    <span class="price">TK {{ number_format($item->sale_price, 2) }}</span>
-                                    <span class="old-price">TK {{ number_format($item->price, 2) }}</span>
+                                @if ((float)($item->sale_price ?? 0) > 0 && (float)($item->price ?? 0) > (float)($item->sale_price ?? 0))
+                                    <span class="price">TK {{ number_format((float)$item->sale_price, 2) }}</span>
+                                    <span class="old-price">TK {{ number_format((float)$item->price, 2) }}</span>
                                 @else
-                                    <span class="price">TK {{ number_format($item->price, 2) }}</span>
+                                    <span class="price">TK {{ number_format((float)((float)($item->sale_price ?? 0) > 0 ? $item->sale_price : ($item->price ?? 0)), 2) }}</span>
                                 @endif
                             </div>
-
                         </div>
                     @endforeach
-
                 </div>
             </div>
         </div>
     @endif
 
     {{-- Hot Sale Section --}}
-    @if (count($hot_sale) > 0)
+    @if (isset($hot_sale) && count($hot_sale) > 0)
         <div class="products">
             <div class="custom-container">
                 <h2 class="section-title text-center">Hot Sale
@@ -105,25 +86,26 @@
                     @endif
                 </h2>
                 <div class="product-list">
-                    @foreach ($hot_sale as $item)
+                    @foreach ($hot_sale->take(10) as $item)
                         <div class="product-item">
-                            <a href="{{ route('single.product', $item->slug) }}">
+                            <a href="{{ route('product.details', $item->slug ?: $item->id) }}">
                                 <div class="image">
-                                    <img src="{{ $item->get_thumb ? asset($item->get_thumb->file_url) : asset('frontEnd/images/no_image.png') }}"
-                                        class="thumb-img" alt="">
-                                    @if ($item->get_hover)
-                                        <img src="{{ asset($item->get_hover->file_url) }}" alt=""
+                                    <img src="{{ !empty($item->get_thumb) ? asset($item->get_thumb->file_url) : (!empty($item->image_url) ? asset($item->image_url) : asset('frontEnd/images/no_image.png')) }}"
+                                        class="thumb-img" alt="{{ $item->name ?? '' }}">
+                                    @if (!empty($item->get_hover) && !empty($item->get_hover->file_url))
+                                        <img src="{{ asset($item->get_hover->file_url) }}" alt="{{ $item->name ?? '' }}"
+                                            class="hover-img">
+                                    @elseif (!empty($item->hover_image))
+                                        <img src="{{ asset($item->hover_image) }}" alt="{{ $item->name ?? '' }}"
                                             class="hover-img">
                                     @endif
-
-
                                 </div>
-                                <span class="product-name">{{ $item->name }}</span>
+                                <span class="product-name">{{ $item->name ?? '' }}</span>
                             </a>
                             <div class="absolute-product">
-                                @if ($item->sale_price > 0)
+                                @if ((float)($item->sale_price ?? 0) > 0 && (float)($item->price ?? 0) > (float)($item->sale_price ?? 0))
                                     <div class="discount">
-                                        {{ round((($item->price - $item->sale_price) / $item->price) * 100) }} %
+                                        {{ round(((($item->price - $item->sale_price) / $item->price) * 100)) }} %
                                     </div>
                                 @endif
                                 <div class="wishlist-btn">
@@ -139,14 +121,13 @@
                                 </div>
                             </div>
                             <div class="prices">
-                                @if ($item->sale_price > 0)
-                                    <span class="price">TK {{ number_format($item->sale_price, 2) }}</span>
-                                    <span class="old-price">TK {{ number_format($item->price, 2) }}</span>
+                                @if ((float)($item->sale_price ?? 0) > 0 && (float)($item->price ?? 0) > (float)($item->sale_price ?? 0))
+                                    <span class="price">TK {{ number_format((float)$item->sale_price, 2) }}</span>
+                                    <span class="old-price">TK {{ number_format((float)$item->price, 2) }}</span>
                                 @else
-                                    <span class="price">TK {{ number_format($item->price, 2) }}</span>
+                                    <span class="price">TK {{ number_format((float)((float)($item->sale_price ?? 0) > 0 ? $item->sale_price : ($item->price ?? 0)), 2) }}</span>
                                 @endif
                             </div>
-
                         </div>
                     @endforeach
                 </div>
@@ -155,7 +136,7 @@
     @endif
 
     {{-- Trending Products Section --}}
-    @if (count($trending) > 0)
+    @if (isset($trending) && count($trending) > 0)
         <div class="products">
             <div class="custom-container">
                 <h2 class="section-title text-center">Trending Products
@@ -166,26 +147,26 @@
                     @endif
                 </h2>
                 <div class="product-list">
-
-                    @foreach ($trending as $item)
+                    @foreach ($trending->take(10) as $item)
                         <div class="product-item">
-                            <a href="{{ route('single.product', $item->slug) }}">
+                            <a href="{{ route('product.details', $item->slug ?: $item->id) }}">
                                 <div class="image">
-                                    <img src="{{ $item->get_thumb ? asset($item->get_thumb->file_url) : asset('frontEnd/images/no_image.png') }}"
-                                        class="thumb-img" alt="">
-                                    @if ($item->get_hover)
-                                        <img src="{{ asset($item->get_hover->file_url) }}" alt=""
+                                    <img src="{{ !empty($item->get_thumb) ? asset($item->get_thumb->file_url) : (!empty($item->image_url) ? asset($item->image_url) : asset('frontEnd/images/no_image.png')) }}"
+                                        class="thumb-img" alt="{{ $item->name ?? '' }}">
+                                    @if (!empty($item->get_hover) && !empty($item->get_hover->file_url))
+                                        <img src="{{ asset($item->get_hover->file_url) }}" alt="{{ $item->name ?? '' }}"
+                                            class="hover-img">
+                                    @elseif (!empty($item->hover_image))
+                                        <img src="{{ asset($item->hover_image) }}" alt="{{ $item->name ?? '' }}"
                                             class="hover-img">
                                     @endif
-
-
                                 </div>
-                                <span class="product-name">{{ $item->name }}</span>
+                                <span class="product-name">{{ $item->name ?? '' }}</span>
                             </a>
                             <div class="absolute-product">
-                                @if ($item->sale_price > 0)
+                                @if ((float)($item->sale_price ?? 0) > 0 && (float)($item->price ?? 0) > (float)($item->sale_price ?? 0))
                                     <div class="discount">
-                                        {{ round((($item->price - $item->sale_price) / $item->price) * 100) }} %
+                                        {{ round(((($item->price - $item->sale_price) / $item->price) * 100)) }} %
                                     </div>
                                 @endif
                                 <div class="wishlist-btn">
@@ -201,24 +182,22 @@
                                 </div>
                             </div>
                             <div class="prices">
-                                @if ($item->sale_price > 0)
-                                    <span class="price">TK {{ number_format($item->sale_price, 2) }}</span>
-                                    <span class="old-price">TK {{ number_format($item->price, 2) }}</span>
+                                @if ((float)($item->sale_price ?? 0) > 0 && (float)($item->price ?? 0) > (float)($item->sale_price ?? 0))
+                                    <span class="price">TK {{ number_format((float)$item->sale_price, 2) }}</span>
+                                    <span class="old-price">TK {{ number_format((float)$item->price, 2) }}</span>
                                 @else
-                                    <span class="price">TK {{ number_format($item->price, 2) }}</span>
+                                    <span class="price">TK {{ number_format((float)((float)($item->sale_price ?? 0) > 0 ? $item->sale_price : ($item->price ?? 0)), 2) }}</span>
                                 @endif
                             </div>
-
                         </div>
                     @endforeach
-
                 </div>
             </div>
         </div>
     @endif
 
     {{-- Featured Products Section --}}
-    @if (count($featured) > 0)
+    @if (isset($featured) && count($featured) > 0)
         <div class="products">
             <div class="custom-container">
                 <h2 class="section-title text-center">Featured Products
@@ -229,25 +208,26 @@
                     @endif
                 </h2>
                 <div class="product-list">
-                    @foreach ($featured as $item)
+                    @foreach ($featured->take(10) as $item)
                         <div class="product-item">
-                            <a href="{{ route('single.product', $item->slug) }}">
+                            <a href="{{ route('product.details', $item->slug ?: $item->id) }}">
                                 <div class="image">
-                                    <img src="{{ $item->get_thumb ? asset($item->get_thumb->file_url) : asset('frontEnd/images/no_image.png') }}"
-                                        class="thumb-img" alt="">
-                                    @if ($item->get_hover)
-                                        <img src="{{ asset($item->get_hover->file_url) }}" alt=""
+                                    <img src="{{ !empty($item->get_thumb) ? asset($item->get_thumb->file_url) : (!empty($item->image_url) ? asset($item->image_url) : asset('frontEnd/images/no_image.png')) }}"
+                                        class="thumb-img" alt="{{ $item->name ?? '' }}">
+                                    @if (!empty($item->get_hover) && !empty($item->get_hover->file_url))
+                                        <img src="{{ asset($item->get_hover->file_url) }}" alt="{{ $item->name ?? '' }}"
+                                            class="hover-img">
+                                    @elseif (!empty($item->hover_image))
+                                        <img src="{{ asset($item->hover_image) }}" alt="{{ $item->name ?? '' }}"
                                             class="hover-img">
                                     @endif
-
-
                                 </div>
-                                <span class="product-name">{{ $item->name }}</span>
+                                <span class="product-name">{{ $item->name ?? '' }}</span>
                             </a>
                             <div class="absolute-product">
-                                @if ($item->sale_price > 0)
+                                @if ((float)($item->sale_price ?? 0) > 0 && (float)($item->price ?? 0) > (float)($item->sale_price ?? 0))
                                     <div class="discount">
-                                        {{ round((($item->price - $item->sale_price) / $item->price) * 100) }} %
+                                        {{ round(((($item->price - $item->sale_price) / $item->price) * 100)) }} %
                                     </div>
                                 @endif
                                 <div class="wishlist-btn">
@@ -263,54 +243,22 @@
                                 </div>
                             </div>
                             <div class="prices">
-                                @if ($item->sale_price > 0)
-                                    <span class="price">TK {{ number_format($item->sale_price, 2) }}</span>
-                                    <span class="old-price">TK {{ number_format($item->price, 2) }}</span>
+                                @if ((float)($item->sale_price ?? 0) > 0 && (float)($item->price ?? 0) > (float)($item->sale_price ?? 0))
+                                    <span class="price">TK {{ number_format((float)$item->sale_price, 2) }}</span>
+                                    <span class="old-price">TK {{ number_format((float)$item->price, 2) }}</span>
                                 @else
-                                    <span class="price">TK {{ number_format($item->price, 2) }}</span>
+                                    <span class="price">TK {{ number_format((float)((float)($item->sale_price ?? 0) > 0 ? $item->sale_price : ($item->price ?? 0)), 2) }}</span>
                                 @endif
                             </div>
-
                         </div>
                     @endforeach
-
-
                 </div>
             </div>
         </div>
     @endif
-    {{-- <div class="showroom">
-        <div class="custom-container">
-            <h2 class="section-title text-center">Find Our Showrooms all over Bangladesh</h2>
-            <span class="desc">
-                We intend to open more and more outlets so that people from every where in the country
-                can gain access to us and our products easily.
-            </span>
-            <div class="showroom-content">
-                <div class="showroom-card">
-                    <div class="image">
-                        <img src="{{ asset('frontEnd') }}/assets/images/showroom.png" alt="">
-                    </div>
-                    <div class="name">Mirpur Outlet</div>
-                    <div class="address">
-                        Mirpur 10, Dhaka.
-                    </div>
-                    <div class="open-hours">
-                        Business Hours Till 10:00Am – 9.00Pm **Holiday- Thursday
-                    </div>
-                    <div class="map">
-                        <a href="">Find Map</a>
-                    </div>
-                </div>
-
-            </div>
-            <div class="more-showroom">
-                <a href="">More Showroom</a>
-            </div>
-        </div>
-    </div> --}}
 
 @endsection
+
 @section('script')
     <script>
         $(document).ready(function() {
@@ -342,6 +290,4 @@
             $('.owl-nav').remove();
         });
     </script>
-    <script></script>
-
 @endsection

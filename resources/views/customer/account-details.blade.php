@@ -1,4 +1,4 @@
-@extends('frontEnd.layouts.master')
+@extends('layouts.master')
 @section('title', 'Account Details')
 
 @section('style')

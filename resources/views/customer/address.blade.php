@@ -1,4 +1,4 @@
-@extends('frontEnd.layouts.master')
+@extends('layouts.master')
 @section('title', 'Address')
 
 @section('style')

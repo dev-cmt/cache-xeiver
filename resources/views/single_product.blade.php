@@ -1,10 +1,10 @@
-@extends('frontEnd.layouts.master')
+@extends('layouts.master')
 
 @section('title')
     {{ $data->name }}
 @endsection
 @php
-    $page_settings = \Illuminate\Support\Facades\DB::table('page_settings')->where('id', 1)->first();
+    $page_settings = $web_settings ?? (object) [];
 @endphp
 @section('style')
 
@@ -482,6 +482,53 @@
     </style>
 @endsection
 
+@section('tracking')
+    @if(session()->has('api_add_to_cart'))
+        <script>
+            dataLayer.push({ecommerce: null});
+            dataLayer.push({
+                event: "add_to_cart",
+                ecommerce: {
+                    currency: "BDT",
+                    value: {{ session('api_add_to_cart_data')['value'] ?? 0 }},
+                    items: {!! session('api_add_to_cart_data')['products'] ?? '[]' !!}
+                }
+            });
+            if (typeof fbq === 'function') {
+                var addToCartItems = {!! session('api_add_to_cart_data')['products'] ?? '[]' !!};
+                fbq('track', 'AddToCart', {
+                    content_ids: addToCartItems.map(function (item) { return item.item_id; }),
+                    content_name: addToCartItems.length ? addToCartItems[0].item_name : '',
+                    content_type: 'product',
+                    value: {{ session('api_add_to_cart_data')['value'] ?? 0 }},
+                    currency: 'BDT'
+                });
+            }
+        </script>
+    @endif
+    <script>
+        var viewItemItems = {!! session('api_view_item_data')['products'] ?? '[]' !!};
+        dataLayer.push({ecommerce: null});
+        dataLayer.push({
+            event: "view_item",
+            ecommerce: {
+                currency: "BDT",
+                value: {{ session('api_view_item_data')['value'] ?? 0 }},
+                items: {!! session('api_view_item_data')['products'] ?? '[]' !!}
+            }
+        });
+        if (typeof fbq === 'function') {
+            fbq('track', 'ViewContent', {
+                content_ids: viewItemItems.map(function (item) { return item.item_id; }),
+                content_name: viewItemItems.length ? viewItemItems[0].item_name : '',
+                content_type: 'product',
+                value: {{ session('api_view_item_data')['value'] ?? 0 }},
+                currency: 'BDT'
+            });
+        }
+    </script>
+@endsection
+
 @section('body')
     <section>
         <div class="category_breadcrumb">
@@ -634,6 +681,8 @@
                                 @if ($data->has_variant == 1)
                                     <input type="hidden" name="choice_attributes" id="choice_attributes"
                                            class="choice_attributes">
+                                    <input type="hidden" name="variant_value" id="variant_value"
+                                           class="variant_value">
                                     <div class="attributes mt-3">
                                         <div class="item">
                                             @foreach ($data->get_choice_attributes as $key => $attribute)
@@ -657,6 +706,7 @@
                                                                        id="val_{{ $key }}{{ $key2 }}"
                                                                        name="attribute_item_id[{{ $attribute->get_attribute->id }}][]"
                                                                        value="{{ $item->attribute_item_name }}"
+                                                                       data-id="{{ $item->id }}"
                                                                        class="attr_checkbox d-row s-row"
                                                                        @if ($loop->first) checked @endif
                                                                        data-image="{{ asset($item->image) }}">
@@ -674,6 +724,7 @@
                                                                        id="val_{{ $key }}{{ $key2 }}"
                                                                        name="attribute_item_id[{{ $attribute->get_attribute->id }}][]"
                                                                        value="{{ $item->attribute_item_name }}"
+                                                                       data-id="{{ $item->id }}"
                                                                        class="attr_checkbox d-row s-row"
                                                                        @if ($loop->first) checked @endif>
                                                                 <label class="mb-0"
@@ -705,7 +756,7 @@
 
                                 </div>
                             </form>
-                            @if ($data->get_size_chart)
+                            @if (!empty($data->get_size_chart) && !empty($data->get_size_chart->file_url))
                                 <div class="size-chart mt-3">
                                     <button id="openModal" data-image="{{ asset($data->get_size_chart->file_url) }}">Size
                                         Chart
@@ -727,8 +778,16 @@
                         </ul>
                         <div class="tab-content tab-content-mod">
                             <div class="tab-pane active">
-                                <div>
-                                    {!! $data->description !!}
+                                <div class="product-description-content">
+                                    @if (!empty($data->description))
+                                        {!! $data->description !!}
+                                    @else
+                                        <div class="text-center py-4">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="sr-only">লোড হচ্ছে...</span>
+                                            </div>
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -744,7 +803,7 @@
                     <div class="product-list">
                         @foreach ($related_prod as $item)
                             <div class="product-item">
-                                <a href="{{ route('single.product', $item->slug) }}">
+                                <a href="{{ route('product.details', $item->slug ?: $item->id) }}">
                                     <div class="image">
                                         <img src="{{ $item->get_thumb ? asset($item->get_thumb->file_url) : asset('frontEnd/images/no_image.png') }}"
                                              class="thumb-img" alt="">
@@ -825,7 +884,7 @@
                 'items': [{
                     'item_id': '{{ $data->id }}',
                     'item_name': '{{ $data->name }}',
-                    'item_category': '{{ $data->get_categories->first()->category_name ?? '' }}',
+                    'item_category': '{{ optional(optional($data->get_categories)->first())->category_name ?? '' }}',
                     'price': {{ $data->sale_price != 0 ? $data->sale_price : $data->price }},
                     'quantity': 1
                 }]
@@ -834,7 +893,7 @@
 
         fbq('track', 'ViewContent', {
             content_name: '{{ $data->name }}',
-            content_category: '{{ $data->get_categories->first()->category_name ?? '' }}',
+            content_category: '{{ optional(optional($data->get_categories)->first())->category_name ?? '' }}',
             content_ids: ['{{ $data->id }}'],
             content_type: 'product',
             value: {{ $data->sale_price != 0 ? $data->sale_price : $data->price }},
@@ -876,6 +935,43 @@
     <!--/Google Tag Manager -->
 
     <script>
+        var productVariants = {!! json_encode($data->get_product_attributes ?? $data->get_attributes ?? []) !!};
+        var baseProductSku = @json($data->sku ?? '');
+        var productDescriptionUrl = @json(rtrim(env('IMS_APP_BASE_URL'), '/') . '/api/v1/app/product-description/' . $data->id);
+
+        function loadProductDescription() {
+            var descriptionContent = $('.product-description-content');
+
+            fetch(productDescriptionUrl, {
+                headers: {
+                    Accept: 'application/json'
+                }
+            })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error('Product description request failed with status ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(function (data) {
+                    var description = data && data.success && data.description
+                        ? data.description.description
+                        : null;
+
+                    if (typeof description !== 'string') {
+                        throw new Error('Product description was not included in the API response');
+                    }
+
+                    descriptionContent.html(description);
+                })
+                .catch(function (error) {
+                    console.error('Unable to load product description:', error);
+                    descriptionContent.html(
+                        '<div class="alert alert-danger mb-0">পন্যের বিবরণ লোড করা যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।</div>'
+                    );
+                });
+        }
+
         $('#qty_plus').on('click', function () {
             var qty = $('#qty').val();
             qty++;
@@ -894,34 +990,47 @@
             get_variant();
         });
 
-        $(document).ready(function () {
-
-            var choice_attributes2 = [];
+        function update_selected_variants() {
+            var choice_attributes = [];
+            var variant_values = [];
             $(".attr_checkbox:checked").each(function () {
-                choice_attributes2.push($(this).val());
+                choice_attributes.push($(this).val());
+                var itemId = $(this).attr('data-id') || $(this).data('id');
+                if (itemId) {
+                    variant_values.push(itemId);
+                }
             });
-            $('#choice_attributes').val(choice_attributes2);
-            get_variant();
+            $('#choice_attributes').val(choice_attributes.join(','));
+            $('#variant_value').val(variant_values.join(','));
+            return {
+                choice_attributes: choice_attributes,
+                variant_values: variant_values
+            };
+        }
 
+        $(document).ready(function () {
+            loadProductDescription();
+            update_selected_variants();
+            get_variant();
         });
 
         //variant
         function get_variant() {
             $('#ajax-loader').show();
-            var choice_attributes = [];
-            $(".attr_checkbox:checked").each(function () {
-                choice_attributes.push($(this).val());
-            });
+            var selections = update_selected_variants();
+            var choice_attributes = selections.choice_attributes;
+            var variant_value = selections.variant_values.join(',');
             var product_id = $('#id').val();
             var quantity = $('#qty').val();
 
             var CSRF = `{{ csrf_token() }}`;
             $.ajax({
                 type: "POST",
-                url: `{{ route('product.ajax.get.variant') }}`,
+                url: `{{ route('ajax.get.variant') }}`,
                 data: {
                     _token: CSRF,
                     choice_attributes: choice_attributes,
+                    variant_value: variant_value,
                     id: product_id,
                     quantity: quantity
                 },
@@ -956,8 +1065,7 @@
         }
 
         $(document).on('click', '.attr_checkbox', function () {
-            //alert(3)
-            // $(this).parent().parent().find('.attribute-name-value').text($(this).val());
+            update_selected_variants();
             get_variant();
         });
 

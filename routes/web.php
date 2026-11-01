@@ -30,10 +30,30 @@ Route::get('/product-catalog-feed', 'HomeController@productsCatalogFeed')->name(
 // Storefront Frontend Routes
 Route::get('/', 'HomeController@index')->name('home');
 Route::get('/category/{id}', 'HomeController@getCategory')->name('category.show');
-Route::get('/product/{slug}/{id}', 'HomeController@productDetails')->name('product.details');
+Route::get('/category-single/{id}', 'HomeController@getCategory')->name('single.category');
+Route::get('/product/{slug}', 'HomeController@productDetails')->name('product.details');
+Route::get('/products', 'HomeController@products')->name('products');
 Route::get('/all-hot-deals', 'HomeController@allHotDeals')->name('all.hot.deals');
 Route::get('/search', 'HomeController@search')->name('search');
 Route::get('/ajax-search', 'HomeController@ajaxSearch')->name('ajax.search');
+
+// Customer authentication
+Route::get('/login', function () {
+    return view('auth.login');
+})->name('user.login');
+Route::post('/login', 'Auth\LoginController@login')->name('user.login.submit');
+Route::get('/register', function () {
+    return view('auth.register');
+})->name('user.register');
+Route::post('/register', 'Auth\RegisterController@register')->name('user.register.submit');
+Route::get('/profile', function () {
+    return view('customer.profile');
+})->name('profile');
+
+// Wishlist
+Route::get('/wishlist', 'HomeController@wishlist')->name('wishlist');
+Route::post('/wishlist/add', 'HomeController@addWishlist')->name('add.wishlist');
+Route::post('/wishlist/remove', 'HomeController@removeWishlist')->name('remove.wishlist');
 
 // Product Reviews
 Route::post('/review/store', 'HomeController@reviewStore')->name('review.store');

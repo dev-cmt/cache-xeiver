@@ -1,4 +1,4 @@
-@extends('frontEnd.layouts.master')
+@extends('layouts.master')
 
 @section('title')
     Searched Products
@@ -28,7 +28,7 @@
                     <div class="product-list">
                         @foreach ($data as $item)
                             <div class="product-item">
-                                <a href="{{ route('single.product', $item->slug) }}">
+                                <a href="{{ route('product.details', $item->slug ?: $item->id) }}">
                                     <div class="image">
                                         <img src="{{ $item->get_thumb ? asset($item->get_thumb->file_url) : asset('frontEnd/images/no_image.png') }}"
                                             class="thumb-img" alt="">

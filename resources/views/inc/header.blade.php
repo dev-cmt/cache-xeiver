@@ -1,8 +1,3 @@
-@php
-    //  $categories = \App\Category::get();
-    $categories = \App\Category::tree();
-    //  dd($categories);
-@endphp
 <header class="header">
     <div class="header-top">
         <div class="custom-container">
@@ -134,9 +129,9 @@
                         Home
                     </a>
                 </li>
-                @foreach ($categories as $cat)
+                @foreach ($menu_categories as $cat)
                     <li>
-                        <a href="{{ route('single.category', $cat->id) }}">
+                        <a href="{{ route('category.show', $cat->id) }}">
                             <span>{{ $cat->category_name }}</span>
                             @if (count($cat->children) > 0)
                                 <span>
@@ -155,7 +150,7 @@
                                 @foreach ($cat->children as $child)
                                     <li>
                                         <a
-                                            href="{{ route('single.category', $child->id) }}">{{ $child->category_name }}</a>
+                                            href="{{ route('category.show', $child->id) }}">{{ $child->category_name }}</a>
                                     </li>
                                 @endforeach
                             </ul>
@@ -287,10 +282,10 @@
     </div>
     <div class="offcanvas-body pt-0">
         <ul class="list-group list-group-flush">
-            @foreach ($categories as $category)
+            @foreach ($menu_categories as $category)
                 <li class="list-group-item">
                     <div class="d-flex justify-content-between align-items-center">
-                        <a href="{{ route('single.category', $category->id) }}">
+                        <a href="{{ route('category.show', $category->id) }}">
                             {{ $category->category_name }}
                         </a>
                         @if (count($category->children) > 0)
@@ -311,7 +306,7 @@
                         <ul class="collapse ps-3 pt-2" id="cat{{ $category->id }}">
                             @foreach ($category->children as $sub)
                                 <li>
-                                    <a href="{{ route('single.category', $sub->id) }}">{{ $sub->category_name }}</a>
+                                    <a href="{{ route('category.show', $sub->id) }}">{{ $sub->category_name }}</a>
                                 </li>
                             @endforeach
                         </ul>

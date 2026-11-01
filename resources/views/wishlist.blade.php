@@ -1,4 +1,4 @@
-@extends('frontEnd.layouts.master')
+@extends('layouts.master')
 
 @section('title')
     Wishlist
@@ -125,7 +125,7 @@
                                 <td>{{ $item->name }}</td>
                                 <td>{{ $item->price }}</td>
                                 <td>
-                                    <a href="{{ route('single.product', $item->slug) }}">
+                                    <a href="{{ route('product.details', $item->slug ?: $item->id) }}">
                                         <button class="add-to-cart">Add To Cart</button>
                                     </a>
                                 </td>

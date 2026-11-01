@@ -1,5 +1,5 @@
 @foreach ($child_categories as $child_category)
-    <a href="{{ route('single.category', $cat->id) }}">
+    <a href="{{ route('category.show', $cat->id) }}">
         <span>{{ $cat->category_name }}</span>
         @if (count($cat->children) > 0)
             <span>
@@ -15,7 +15,7 @@
     @if (count($cat->children) > 0)
         {{-- @dd($cat->children) --}}
         <ul class="submenu">
-            @include('frontEnd.inc.child_category', ['child_categories' => $cat->children])
+            @include('inc.child_category', ['child_categories' => $cat->children])
         </ul>
     @endif
 @endforeach

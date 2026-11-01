@@ -1,13 +1,10 @@
- @php
-     $settings = \App\WebSettings::first();
-     $categories = \App\Category::where('status', 1)->latest()->take(5)->get();
- @endphp
+ @php($settings = $store)
  <footer>
      <div class="custom-container">
          <div class="footer-content">
              <div class="footer-logo">
                  <img src="{{ $web_settings->get_logo ? asset($web_settings->get_logo->file_url) : asset('frontEnd/images/no_image.png') }}" alt="">
-                 <span>{!! $web_settings->footer_intro !!}</span>
+                 <span>{{ $store['footer_intro'] ?? 'Quality products delivered to your doorstep.' }}</span>
              </div>
              <div class="footer-links1 item">
                  <span>
@@ -21,27 +18,27 @@
                  <span>
                      Our Categories
                  </span>
-                 @foreach ($categories as $category)
-                     <a href="{{ route('single.category', $category->id) }}">{{ $category->category_name }}</a>
+                 @foreach ($footer_categories as $category)
+                     <a href="{{ route('category.show', $category->id) }}">{{ $category->category_name }}</a>
                  @endforeach
              </div>
 
              <div class="pay item-2">
                  <span>We Accept</span>
                  <div class="pay-icons">
-                     <img src="{{ asset('frontEnd') }}/assets/images/pay-1.jpg" alt="">
-                     <img src="{{ asset('frontEnd') }}/assets/images/pay2.jpg" alt="">
-                     <img src="{{ asset('frontEnd') }}/assets/images/pay_3.jpg" alt="">
-                     <img src="{{ asset('frontEnd') }}/assets/images/payment_icon_4.jpg" alt="">
-                     <img src="{{ asset('frontEnd') }}/assets/images/payment_icon_5.jpg" alt="">
-                     <img src="{{ asset('frontEnd') }}/assets/images/payment_icon_6.jpg" alt="">
+                     <img src="{{ asset('frontEnd') }}/images/pay-1.jpg" alt="">
+                     <img src="{{ asset('frontEnd') }}/images/pay-2.jpg" alt="">
+                     <img src="{{ asset('frontEnd') }}/images/pay-3.jpg" alt="">
+                     <img src="{{ asset('frontEnd') }}/images/payment_icon_4.jpg" alt="">
+                     <img src="{{ asset('frontEnd') }}/images/payment_icon_5.jpg" alt="">
+                     <img src="{{ asset('frontEnd') }}/images/payment_icon_6.jpg" alt="">
                  </div>
              </div>
              <div class="social item-2">
                  <span>Follow Us</span>
                  <div class="social-icons">
-                     @if ($settings && $settings->website_facebook)
-                         <a class="facebook" href="{{ $settings->website_facebook }}" target="_blank">
+                     @if (!empty($settings['facebook']))
+                         <a class="facebook" href="{{ $settings['facebook'] }}" target="_blank">
                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                                  fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                  stroke-linejoin="round"
@@ -51,8 +48,8 @@
                              </svg>
                          </a>
                      @endif
-                     @if ($settings && $settings->website_twitter)
-                         <a href="{{ $settings->website_twitter }}" class="twitter" target="_blank">
+                     @if (!empty($settings['twitter']))
+                         <a href="{{ $settings['twitter'] }}" class="twitter" target="_blank">
                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                                  fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                  stroke-linejoin="round"
@@ -63,8 +60,8 @@
                              </svg>
                          </a>
                      @endif
-                     @if ($settings && $settings->website_instagram)
-                         <a href="{{ $settings->website_instagram }}" class="instagram" target="_blank">
+                     @if (!empty($settings['instagram']))
+                         <a href="{{ $settings['instagram'] }}" class="instagram" target="_blank">
                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                                  fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                  stroke-linejoin="round"
@@ -76,8 +73,8 @@
                              </svg>
                          </a>
                      @endif
-                     @if ($settings && $settings->website_tiktok)
-                         <a href="{{ $settings->website_tiktok }}" class="tiktok" target="_blank">
+                     @if (!empty($settings['tiktok']))
+                         <a href="{{ $settings['tiktok'] }}" class="tiktok" target="_blank">
                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                                  fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                  stroke-linejoin="round"
@@ -88,17 +85,13 @@
                              </svg>
                          </a>
                      @endif
-
-
-
                  </div>
              </div>
 
          </div>
      </div>
      <div class="footer-bottom">
-         @if ($settings && $settings->website_copyright_text)
-             {!! $settings->website_copyright_text ?? '© 2023 TrendyMart24. All rights reserved.' !!} Developed By <a href="https://prodevsltd.com" target="_blank">Pro Devs Ltd.</a>
-         @endif
+         {!! $web_settings->website_copyright_text ?? ('&copy; ' . date('Y') . ' ' . ($store['name'] ?? 'Store') . '. All rights reserved.') !!}
+         Developed By <a href="https://prodevsltd.com" target="_blank">Pro Devs Ltd.</a>
      </div>
  </footer>

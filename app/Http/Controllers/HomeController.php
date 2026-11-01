@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
 use App\Services\AppApiService;
@@ -23,11 +22,145 @@ class HomeController extends Controller
      */
     public function index(Request $request)
     {
+        $allProducts = collect($this->api->getAllMappedProducts());
+        $categories  = collect($this->api->getCategories());
+        $sliders     = collect($this->api->getSliders());
+        $hotDeals    = collect($this->api->getHotDeals());
+
+        // New Arrivals: Products tagged 'new'/'arrival' or newest products sorted by ID
+        $newArrivals = $allProducts->filter(function ($p) {
+            $tag = strtolower($p->product_tag ?? '');
+            return str_contains($tag, 'new') || str_contains($tag, 'arrival');
+        })->values();
+
+        if ($newArrivals->isEmpty()) {
+            $newArrivals = $allProducts->sortByDesc('id')->values();
+        }
+
+        // Hot Sale: Products tagged 'hot'/'sale' or with an active discounted sale_price
+        $hotSale = $allProducts->filter(function ($p) {
+            $tag = strtolower($p->product_tag ?? '');
+            $hasDiscount = ((float) ($p->sale_price ?? 0) > 0) && ((float) ($p->sale_price ?? 0) < (float) ($p->price ?? 0));
+            return str_contains($tag, 'hot') || str_contains($tag, 'sale') || $hasDiscount;
+        })->values();
+
+        if ($hotSale->isEmpty()) {
+            $hotSale = $hotDeals->isNotEmpty() ? $hotDeals : $allProducts->filter(fn($p) => (float) ($p->sale_price ?? 0) > 0)->values();
+        }
+
+        // Trending Products: Products tagged 'trend'/'popular' or sorted by stock / position
+        $trending = $allProducts->filter(function ($p) {
+            $tag = strtolower($p->product_tag ?? '');
+            return str_contains($tag, 'trend') || str_contains($tag, 'popular');
+        })->values();
+
+        if ($trending->isEmpty()) {
+            $trending = $allProducts->sortByDesc(function ($p) {
+                return (int) ($p->position ?? 0) + (int) ($p->total_stock ?? 0);
+            })->values();
+        }
+
+        // Featured Products: Products tagged 'feature' or sorted by price / priority
+        $featured = $allProducts->filter(function ($p) {
+            $tag = strtolower($p->product_tag ?? '');
+            return str_contains($tag, 'feature');
+        })->values();
+
+        if ($featured->isEmpty()) {
+            $featured = $allProducts->sortByDesc(fn($p) => (float) ($p->price ?? 0))->values();
+        }
+
         return view('index', [
-            'categories' => collect($this->api->getCategories()),
-            'sliders'    => collect($this->api->getSliders()),
-            'products'   => $this->api->getProducts(null, (int) $request->get('page', 1)),
-            'hot_deal'   => collect($this->api->getHotDeals()),
+            'categories'   => $categories,
+            'sliders'      => $sliders,
+            'new_arrivals' => $newArrivals,
+            'hot_sale'     => $hotSale,
+            'trending'     => $trending,
+            'featured'     => $featured,
+            'products'     => $this->api->getProducts(null, (int) $request->get('page', 1)),
+            'hot_deals'    => $hotDeals,
+        ]);
+    }
+
+    /**
+     * Filtered / All Products Page (for section "View All" links)
+     */
+    public function products(Request $request)
+    {
+        $filter  = $request->get('filter', 'all');
+        $page    = (int) $request->get('page', 1);
+        $perPage = 20;
+
+        $allProducts = collect($this->api->getAllMappedProducts());
+
+        switch ($filter) {
+            case 'new_arrival':
+                $items = $allProducts->filter(function ($p) {
+                    $tag = strtolower($p->product_tag ?? '');
+                    return str_contains($tag, 'new') || str_contains($tag, 'arrival');
+                })->values();
+                if ($items->isEmpty()) {
+                    $items = $allProducts->sortByDesc('id')->values();
+                }
+                $title = 'New Arrival Products';
+                break;
+
+            case 'hot_sale':
+                $items = $allProducts->filter(function ($p) {
+                    $tag = strtolower($p->product_tag ?? '');
+                    $hasDiscount = ((float) ($p->sale_price ?? 0) > 0) && ((float) ($p->sale_price ?? 0) < (float) ($p->price ?? 0));
+                    return str_contains($tag, 'hot') || str_contains($tag, 'sale') || $hasDiscount;
+                })->values();
+                if ($items->isEmpty()) {
+                    $items = collect($this->api->getHotDeals());
+                }
+                $title = 'Hot Sale Products';
+                break;
+
+            case 'trending':
+                $items = $allProducts->filter(function ($p) {
+                    $tag = strtolower($p->product_tag ?? '');
+                    return str_contains($tag, 'trend') || str_contains($tag, 'popular');
+                })->values();
+                if ($items->isEmpty()) {
+                    $items = $allProducts->sortByDesc(fn($p) => (int) ($p->position ?? 0) + (int) ($p->total_stock ?? 0))->values();
+                }
+                $title = 'Trending Products';
+                break;
+
+            case 'featured':
+                $items = $allProducts->filter(function ($p) {
+                    $tag = strtolower($p->product_tag ?? '');
+                    return str_contains($tag, 'feature');
+                })->values();
+                if ($items->isEmpty()) {
+                    $items = $allProducts->sortByDesc(fn($p) => (float) ($p->price ?? 0))->values();
+                }
+                $title = 'Featured Products';
+                break;
+
+            default:
+                $items = $allProducts;
+                $title = 'All Products';
+                break;
+        }
+
+        $total      = $items->count();
+        $pagedItems = $items->slice(($page - 1) * $perPage, $perPage)->values();
+
+        $paginator = new LengthAwarePaginator($pagedItems, $total, $perPage, $page, [
+            'path'     => Paginator::resolveCurrentPath(),
+            'pageName' => 'page',
+        ]);
+
+        return view('all_hot_deals', [
+            'data'        => $paginator,
+            'filter'      => $filter,
+            'title'       => $title,
+            'breadcrumb'  => $title,
+            'subtitle'    => "সকল {$title}",
+            'empty_icon'  => 'fa-box-open',
+            'empty_title' => 'বর্তমানে কোনো পণ্য পাওয়া যায়নি',
         ]);
     }
 
@@ -66,6 +199,7 @@ class HomeController extends Controller
 
         return view('all_hot_deals', [
             'data'        => $paginator,
+            'filter'      => 'hot_deals',
             'title'       => '🔥 সব হট ডিলস (Special Offers)',
             'breadcrumb'  => 'হট ডিলস / All Hot Deals',
             'subtitle'    => 'সেরা মূল্যে আকর্ষণীয় সকল ডিসকাউন্ট ও অফারসমূহ',
@@ -113,7 +247,7 @@ class HomeController extends Controller
             $img = $p->image_url ?? ($p->get_thumb ? asset($p->get_thumb->file_url) : asset('frontEnd/images/no_image.png'));
             $price = (float) ($p->price ?? 0);
             $salePrice = (float) ($p->sale_price ?? 0);
-            $url = route('product.details', [$p->slug ?: 'product', $p->id]);
+            $url = route('product.details', $p->slug ?: $p->id);
             return [
                 'id'         => $p->id,
                 'name'       => $p->name,
@@ -132,15 +266,64 @@ class HomeController extends Controller
         ]);
     }
 
+    public function wishlist()
+    {
+        $products = collect(session()->get('wishlist', []))
+            ->map(fn ($id) => $this->api->getProductById((int) $id))
+            ->filter()
+            ->values();
+
+        return view('wishlist', compact('products'));
+    }
+
+    public function addWishlist(Request $request)
+    {
+        $productId = (int) $request->input('product_id');
+        if (!$this->api->getProductById($productId)) {
+            return response()->json(['success' => false, 'message' => 'Product not found'], 404);
+        }
+
+        $wishlist = collect(session()->get('wishlist', []))
+            ->map(fn ($id) => (int) $id)
+            ->push($productId)
+            ->unique()
+            ->values()
+            ->all();
+        session()->put('wishlist', $wishlist);
+
+        return response()->json([
+            'success'    => true,
+            'message'    => 'Product added to wishlist',
+            'wishlist_count' => count($wishlist),
+        ]);
+    }
+
+    public function removeWishlist(Request $request)
+    {
+        $productId = (int) $request->input('id');
+        $wishlist = collect(session()->get('wishlist', []))
+            ->reject(fn ($id) => (int) $id === $productId)
+            ->values()
+            ->all();
+        session()->put('wishlist', $wishlist);
+
+        return response()->json([
+            'success'       => true,
+            'message'       => 'Product removed from wishlist',
+            'wishlist_count' => count($wishlist),
+        ]);
+    }
+
     /**
      * Single Product Page
      */
-    public function productDetails($slug, $id)
+    public function productDetails($slug)
     {
-        $data = $this->api->getProductBySlugId($slug, (int) $id);
+        $id = is_numeric($slug) ? (int) $slug : 0;
+        $data = $this->api->getProductBySlugId((string) $slug, $id);
         abort_if(!$data, 404);
 
-        $qty = \Cart::get($id)->quantity ?? 1;
+        $qty = \Cart::get($data->id)->quantity ?? 1;
         $price = (float) number_format($data->sale_price ?: $data->price, 2, '.', '');
 
         session()->put('api_view_item_data', [
@@ -210,10 +393,18 @@ class HomeController extends Controller
         $price    = $variant->price ?? $price;
         $quantity = (int) ($request->qty ?? 1);
 
+        // Resolve numeric variant_value (only attribute item ID / numeric value, never text)
+        $cleanVariantValue = null;
+        if (!empty($variantValue) && (is_numeric($variantValue) || preg_match('/^\d+(,\d+)*$/', trim($variantValue)))) {
+            $cleanVariantValue = trim($variantValue);
+        } elseif (!empty($variant) && !empty($variant->id)) {
+            $cleanVariantValue = (string) $variant->id;
+        }
+
         $attributes = [
             'sku'           => $sku,
             'variant'       => $variantText,
-            'variant_value' => $variantValue ?: $variantText,
+            'variant_value' => $cleanVariantValue,
             'slug'          => $slug,
             'image'         => $imageUrl,
         ];
@@ -374,12 +565,22 @@ class HomeController extends Controller
             'customer_phone.max'      => 'আপনার ১১ সংখ্যার মোবাইল নাম্বারটি দিন',
         ]);
 
+        // // Detect Fake Order Submission
+        // if (session()->has('fake-prevent') && session()->get('fake-prevent')['time'] > now()) {
+        //     \Cart::clear();
+        //     return redirect()->route('confiirm.order')->with('success', 'Order Placed Successfully');
+        // } else {
+        //     session()->forget('fake-prevent');
+        //     $expiresAt = now()->addMinutes(5);
+        //     session()->put('fake-prevent', ['time' => $expiresAt]);
+        // } // End Detect Fake Order Submission
+
         $carts = \Cart::getContent();
         if ($carts->count() === 0) {
             return redirect()->route('home')->with('error', 'Please Select Products');
         }
 
-        $invoice_id = 'OTH' . now()->format('dm') . strtoupper(Str::random(5));
+        $invoice_id = 'XVR' . now()->format('dm') . strtoupper(Str::random(5));
         $orderProducts = [];
         $orderProd     = [];
         $i = 0;
@@ -676,6 +877,8 @@ class HomeController extends Controller
 
     public function contactUs()
     {
-        return view('pages.contact_us');
+        $content = $this->getPageSetting('contact-us');
+
+        return view('pages.contact_us', compact('content'));
     }
 }

@@ -1,4 +1,4 @@
-@extends('frontEnd.layouts.master')
+@extends('layouts.master')
 
 @section('title')
     Checkout
@@ -23,6 +23,33 @@
         }
     </style>
 @endsection
+
+@if(\Cart::getContent()->count() > 0)
+@section('tracking')
+    <script>
+        dataLayer.push({ecommerce: null});  // Clear the previous ecommerce object.
+        dataLayer.push({
+            event: "begin_checkout",
+            ecommerce: {
+                currency: "BDT",
+                value: {{ session('api_begin_checkout_data')['value'] ?? 0 }},
+                coupon: "",
+                items: {!! session('api_begin_checkout_data')['products'] ?? '[]' !!}
+            }
+        });
+        if (typeof fbq === 'function') {
+            var checkoutItems = {!! session('api_begin_checkout_data')['products'] ?? '[]' !!};
+            fbq('track', 'InitiateCheckout', {
+                content_ids: checkoutItems.map(function (item) { return item.item_id; }),
+                content_type: 'product',
+                num_items: checkoutItems.reduce(function (total, item) { return total + (Number(item.quantity) || 0); }, 0),
+                value: {{ session('api_begin_checkout_data')['value'] ?? 0 }},
+                currency: 'BDT'
+            });
+        }
+    </script>
+@endsection
+@endif
 
 @section('body')
     @if (\Cart::getContent()->count() > 0)
@@ -98,41 +125,37 @@
 
                                         <tbody>
                                             @foreach (\Cart::getContent()->sort() as $item)
-                                                {{-- @dd($item) --}}
+                                                @php
+                                                    $product = $item->associatedModel;
+                                                    $product = $product instanceof \__PHP_Incomplete_Class ? null : $product;
+                                                    $cartImage = $item->attributes->get('image')
+                                                        ?: ($product->get_thumb->file_url ?? asset('frontEnd/images/no_image.png'));
+                                                    $cartSlug = ($product->slug ?? null) ?: ($product->id ?? $item->id);
+                                                    $skipAttrKeys = ['sku', 'slug', 'image', 'variant_value'];
+                                                    $variantLabel = $item->attributes->get('variant') ?: $item->attributes
+                                                        ->except($skipAttrKeys)
+                                                        ->filter()
+                                                        ->map(fn($v, $k) => ucfirst(str_replace('_', ' ', $k)) . ': ' . str_replace('_', ' ', ucfirst($v)))
+                                                        ->implode(', ');
+                                                @endphp
                                                 <tr>
                                                     <td>
                                                         <a href="{{ route('cart.item.delete', $item->id) }}"><i
                                                                 class="fa fa-trash text-danger"></i></a>
                                                     </td>
                                                     <td class="text-left">
-                                                        <img width="35"
-                                                            src="{{ $item->associatedModel->get_thumb ? $item->associatedModel->get_thumb->file_url : 'default-image-url.jpg' }}">
-                                                        <a style="font-size: 14px"
-                                                            href="{{ route('single.product', [$item->associatedModel->slug, $item->associatedModel->id]) }}">{{ $item->name }}</a>
-                                                        {{-- @dd($item->attributes) --}}
-                                                        {{-- @if (count($item->attributes) > 0)
-                                                            @php
-                                                                $attrText = explode(',', $item->attributes[0]);
-                                                                $attrText = collect($attrText)
-                                                                    ->map(function ($item) {
-                                                                        return str_replace('_', ' ', ucfirst($item));
-                                                                    })
-                                                                    ->implode(', ');
-                                                                // dd($attrText);
-                                                            @endphp
-                                                            <span style="font-size: 14px"
-                                                                class="text-danger text-capitalize">
-                                                                {{ $attrText }}
-                                                            </span>
-                                                        @endif --}}
-                                                        @if ($item->attributes->count() > 0)
+                                                        <img width="50" height="50"
+                                                             style="object-fit: cover; border-radius: 4px; margin-right: 8px; vertical-align: middle;"
+                                                             src="{{ $cartImage }}"
+                                                             alt="{{ $item->name }}"
+                                                             onerror="this.src='{{ asset('frontEnd/images/no_image.png') }}'">
+                                                        <a style="font-size: 14px; vertical-align: middle;"
+                                                            href="{{ route('product.details', $cartSlug) }}">{{ $item->name }}</a>
+                                                        @if ($variantLabel)
                                                             <span style="font-size: 14px" class="text-danger text-capitalize">
-                                                                {{ $item->attributes->map(function ($value, $key) {
-                                                                    return $key . ': ' . str_replace('_', ' ', ucfirst($value));
-                                                                })->implode(', ') }}
+                                                                {{ $variantLabel }}
                                                             </span>
                                                         @endif
-
                                                     </td>
                                                     <td>{{ $item->price }}</td>
                                                     <td width="15%" class="cart_qty">
@@ -200,38 +223,6 @@
 
 
 @section('script')
-    <!--Google Tag Manager -->
-    <script>
-        dataLayer.push({ ecommerce: null });
-        dataLayer.push({
-            'event': 'begin_checkout',
-            'ecommerce': {
-                'currency': 'BDT',
-                'value': {{ \Cart::getTotal() }},
-                'items': [
-                    @foreach (\Cart::getContent() as $item)
-                    {
-                        'item_id': '{{ $item->associatedModel->id }}',
-                        'item_name': '{{ $item->name }}',
-                        'item_category': '{{ $item->associatedModel->get_categories->first()->category_name ?? '' }}',
-                        'price': {{ $item->price }},
-                        'quantity': {{ $item->quantity }}
-                    },
-                    @endforeach
-                ]
-            }
-        });
-
-        fbq('track', 'InitiateCheckout', {
-            content_ids: [@foreach (\Cart::getContent() as $item) '{{ $item->associatedModel->id }}', @endforeach],
-            content_type: 'product',
-            value: {{ \Cart::getTotal() }},
-            currency: 'BDT',
-            num_items: {{ \Cart::getContent()->count() }}
-        });
-    </script>
-    <!--/Google Tag Manager -->
-
     <script>
         $(document).ready(function() {
             $('#customer_phone').on('blur', function() {

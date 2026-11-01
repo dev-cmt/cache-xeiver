@@ -33,26 +33,24 @@ class AppServiceProvider extends ServiceProvider
             static $shared = null;
 
             if ($shared === null) {
-                $api        = new AppApiService();
-                $store      = [];
-                $categories = collect([]);
+                $api               = new AppApiService();
+                $store             = [];
+                $categories        = collect([]);
+                $menu_categories   = collect([]);
+                $footer_categories = collect([]);
+                $section_categories= collect([]);
 
                 try {
                     $store    = $api->getStore() ?? [];
                     $topLevel = collect($api->getCategories());
 
-                    // Build a flat collection: parent + all children so blade can
-                    // do ->where('parent_id', null) and ->where('parent_id', $id) etc.
-                    $flat = collect();
-                    foreach ($topLevel as $cat) {
-                        $flat->push($cat);
-                        if (!empty($cat->children)) {
-                            foreach ($cat->children as $child) {
-                                $flat->push($child);
-                            }
-                        }
-                    }
-                    $categories = $flat;
+                    // All categories (unfiltered, for backward compat if needed)
+                    $categories = $topLevel;
+
+                    // Filtered by flags from the IMS API
+                    $menu_categories    = $topLevel->filter(fn($c) => !empty($c->is_menu));
+                    $footer_categories  = $topLevel->filter(fn($c) => !empty($c->is_footer));
+                    $section_categories = $topLevel->filter(fn($c) => !empty($c->is_section));
                 } catch (\Throwable $e) {}
 
                 $web_config = (object) [
@@ -67,6 +65,8 @@ class AppServiceProvider extends ServiceProvider
                     'currency_sign'          => $store['currency_sign'] ?? '৳',
                     'fb_pixel'               => null,
                     'get_logo'               => !empty($store['logo_url']) ? (object) ['file_url' => $store['logo_url']] : null,
+                    'get_fav'               => !empty($store['favicon_url']) ? (object) ['file_url' => $store['favicon_url']] : null,
+                    'website_messenger'     => $store['messenger'] ?? null,
                 ];
 
                 // Build fb_pixel HTML from the fb_pixels array returned by API
@@ -82,9 +82,12 @@ class AppServiceProvider extends ServiceProvider
                 }
 
                 $shared = [
-                    'web_settings'  => $web_config,
-                    'categories'    => $categories,
-                    'store'         => $store,
+                    'web_settings'      => $web_config,
+                    'categories'        => $categories,
+                    'menu_categories'   => $menu_categories,
+                    'footer_categories' => $footer_categories,
+                    'section_categories'=> $section_categories,
+                    'store'             => $store,
                     'globalSetting' => [
                         'fb_pixels'        => $store['fb_pixels'] ?? [],
                         'google_trackings' => $store['google_trackings'] ?? [],

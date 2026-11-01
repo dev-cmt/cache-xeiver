@@ -9,7 +9,7 @@
     <title>{{ config('app.name') }} - @yield('title')</title>
     <meta name="description" content="">
     <meta property="og:site_name" content="{{ env('APP_NAME') }}">
-    <meta property="og:image" content="{{ asset($web_settings->get_logo->file_url) }}">
+    <meta property="og:image" content="{{ asset(optional($web_settings->get_logo)->file_url ?? 'frontEnd/images/no_image.png') }}">
     <meta property="og:title" content="{{ env('APP_NAME') }}">
     <meta property="og:description" content="">
     <meta property="og:url" content="{{ env('APP_URL') }}">
@@ -18,7 +18,7 @@
     <meta name="twitter:description" content="">
 
     <link rel="shortcut icon"
-        href="{{ $web_settings->get_fav ? asset($web_settings->get_fav->file_url) : asset('frontEnd/images/no_image.png') }}">
+        href="{{ asset(optional($web_settings->get_fav)->file_url ?? 'frontEnd/images/no_image.png') }}">
     {{-- Google fonts --}}
     <link
         href="https://fonts.googleapis.com/css?family=Raleway:300,300i,400,400i,600,600i,700,700i,800,800i&display=swap"
@@ -32,78 +32,103 @@
     {{-- Owl-Carousel --}}
     <link rel="stylesheet" href="{{ asset('frontEnd/plugins/owl-carousel/owl.carousel.min.css') }}">
     <link rel="stylesheet" href="{{ asset('frontEnd/plugins/owl-carousel/owl.theme.default.min.css') }}">
-    {{-- toastr --}}
-    <link rel="stylesheet" type="text/css" href="{{ asset('/') }}backEnd/assets/vendor/toastr/toastr.min.css">
+    {{--toastr--}}
+    <link rel="stylesheet" type="text/css" href="{{asset('frontEnd/plugins/toastr/toastr.min.css')}}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 
-    @yield('style')
     <style>
-        .fixed-contact-buttons {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 5456456456;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .fixed-contact-buttons a {
-            display: flex;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            color: white;
-            font-size: 20px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            transition: transform 0.3s ease-in-out;
-            justify-content: center;
-            align-items: center;
-            text-decoration: 0
-        }
-
-        .fixed-contact-buttons a:hover {
-            transform: scale(1.1);
-        }
-
-        .whatsapp-button {
-            background-color: #49e670;
-        }
-
-        .messenger-button {
-            background-color: #0078FF;
-        }
-
-        .call-button {
-            background-color: #03e78b;
-        }
-
-        @media (max-width: 575.98px) {
-            .fixed-contact-buttons {
-                bottom: 120px;
-                gap: 8px;
-            }
+        /* Global Lazy Loading Styles */
+        img[loading="lazy"] {
+            content-visibility: auto;
         }
     </style>
 
-    {!! $web_settings->fb_pixel ?? null !!}
+    @yield('style')
 
-    {{-- GTM HEAD --}}
-    {!! $web_settings->gtm_head ?? null !!}
+    <script>
+        window.dataLayer = window.dataLayer || [];
+    </script>
+
+    <!-- Google Tag Manager (GTM) -->
+    @if (isset($globalSetting['google_trackings']) && is_array($globalSetting['google_trackings']))
+        @foreach ($globalSetting['google_trackings'] as $gtm)
+            @if (!empty($gtm['tracking_id']) && isset($gtm['status']) && $gtm['status'] == 1)
+                <script>
+                    (function(w, d, s, l, i) {
+                        w[l] = w[l] || [];
+                        w[l].push({
+                            'gtm.start': new Date().getTime(),
+                            event: 'gtm.js'
+                        });
+                        var f = d.getElementsByTagName(s)[0],
+                            j = d.createElement(s),
+                            dl = l != 'dataLayer' ? '&l=' + l : '';
+                        j.async = true;
+                        j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+                        f.parentNode.insertBefore(j, f);
+                    })
+                    (window, document, 'script', 'dataLayer', '{{ $gtm['tracking_id'] }}');
+                </script>
+            @endif
+        @endforeach
+    @endif
+
+    <!-- Facebook Pixel -->
+    @if (isset($globalSetting['fb_pixels']) && is_array($globalSetting['fb_pixels']))
+        @foreach ($globalSetting['fb_pixels'] as $pixel)
+            @if (!empty($pixel['pixel_id']) && isset($pixel['status']) && $pixel['status'] == 1)
+                <script>
+                    ! function(f, b, e, v, n, t, s) {
+                        if (f.fbq) return;
+                        n = f.fbq = function() {
+                            n.callMethod ?
+                                n.callMethod.apply(n, arguments) : n.queue.push(arguments)
+                        };
+                        if (!f._fbq) f._fbq = n;
+                        n.push = n;
+                        n.loaded = !0;
+                        n.version = '2.0';
+                        n.queue = [];
+                        t = b.createElement(e);
+                        t.async = !0;
+                        t.src = v;
+                        s = b.getElementsByTagName(e)[0];
+                        s.parentNode.insertBefore(t, s)
+                    }(window, document, 'script',
+                        'https://connect.facebook.net/en_US/fbevents.js');
+                    fbq('init', '{{ $pixel['pixel_id'] }}');
+                    fbq('track', 'PageView');
+                </script>
+                <noscript>
+                    <img height="1" width="1" style="display:none"
+                        src="https://www.facebook.com/tr?id={{ $pixel['pixel_id'] }}&ev=PageView&noscript=1" />
+                </noscript>
+            @endif
+        @endforeach
+    @endif
+
+    @yield('tracking')
 </head>
 
 <body style="position: relative">
-    {{-- GTM BODY --}}
-    {!! $web_settings->gtm_body ?? null !!}
-
-    @yield('fb_share')
+    <!-- Google Tag Manager Data Layer (noscript) -->
+    @if (isset($globalSetting['google_trackings']) && is_array($globalSetting['google_trackings']))
+        @foreach ($globalSetting['google_trackings'] as $gtm)
+            @if (!empty($gtm['tracking_id']) && isset($gtm['status']) && $gtm['status'] == 1)
+                <noscript>
+                    <iframe src="https://www.googletagmanager.com/ns.html?id={{ $gtm['tracking_id'] }}" height="0" width="0" style="display:none;visibility:hidden"></iframe>
+                </noscript>
+            @endif
+        @endforeach
+    @endif
+    <!-- End Google Tag Manager (noscript) -->
 
     <div class="main-wrapper">
-        @include('frontEnd.inc.header')
+        @include('inc.header')
 
         @yield('body')
 
-        @include('frontEnd.inc.footer')
+        @include('inc.footer')
     </div>
     <div class="fixed-contact-buttons">
         <a href="{{ $web_settings->website_phone3 ? 'https://wa.me/88' . $web_settings->website_phone3 : '#' }}"
@@ -113,7 +138,7 @@
         <a href="tel:{{ $web_settings->website_phone }}" class="call-button">
             <i class="fas fa-phone"></i>
         </a>
-        <a href="{{ $web_settings->website_messenger }}" target="_blank" class="messenger-button">
+        <a href="{{ $web_settings->website_messenger ?: '#' }}" target="_blank" class="messenger-button">
             <i class="fab fa-facebook-messenger"></i>
         </a>
     </div>
@@ -126,7 +151,7 @@
     <script src="{{ asset('frontEnd/plugins/owl-carousel/owl.carousel.min.js') }}"></script>
 
     {{-- toastr --}}
-    <script src="{{ asset('/') }}backEnd/assets/vendor/toastr/toastr.min.js"></script>
+    <script src="{{asset('frontEnd/plugins/toastr/toastr.min.js')}}"></script>
     <script>
         @if (session()->has('success'))
             toastr.options = {
@@ -277,5 +302,4 @@
 
     @yield('script')
 </body>
-
 </html>

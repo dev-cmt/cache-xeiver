@@ -592,6 +592,7 @@ class AppApiService
         $catIds  = is_string($item['category_ids'] ?? null) ? json_decode($item['category_ids'], true) : ($item['category_ids'] ?? []);
         $catIds  = (array) $catIds;
         $img     = $this->resolveMediaUrl($item['image'] ?? null);
+        $hoverImg = $this->resolveMediaUrl($item['hover_image'] ?? null);
 
         $gallery = $item['image_gallery'] ?? $item['gallery_images'] ?? [];
         if (is_string($gallery)) $gallery = json_decode($gallery, true) ?? [];
@@ -671,6 +672,40 @@ class AppApiService
         }, (array) ($item['get_product_attributes'] ?? $item['variants'] ?? []));
 
         $regPrice = (float) ($item['regular_price'] ?? $item['price'] ?? 0);
+        $sizeChart = $this->resolveMediaUrl($item['size_chart'] ?? $item['size_chart_image'] ?? null);
+
+        $getChoiceAttributes = collect($attributes)->map(function ($attr) {
+            $attrName = Str::slug($attr->attribute_name, '_');
+            $items = collect($attr->values)->map(function ($val) {
+                return (object) [
+                    'id'                  => $val->id,
+                    'attribute_item_name' => $val->name,
+                    'name'                => $val->name,
+                    'image'               => $val->image,
+                    'variant_image'       => $val->variant_image,
+                ];
+            });
+
+            return (object) [
+                'get_attribute' => (object) [
+                    'id'        => $attr->attribute_id,
+                    'title'     => $attr->attribute_name,
+                    'name'      => $attrName ?: ('attribute_' . $attr->attribute_id),
+                    'has_image' => $attr->has_image ? 1 : 0,
+                ],
+                'get_choice_attribute_items' => $items,
+            ];
+        });
+
+        $categoriesList = collect($item['categories'] ?? ($category ? [$category] : []))->map(function ($c) {
+            $c = (array) $c;
+            return (object) [
+                'id'            => $c['id'] ?? null,
+                'category_name' => $c['category_name'] ?? $c['name'] ?? '',
+                'name'          => $c['name'] ?? '',
+                'slug'          => $c['slug'] ?? '',
+            ];
+        });
 
         return (object) array_merge($item, [
             'id'                     => $id,
@@ -698,11 +733,17 @@ class AppApiService
             'status'                 => (int) ($item['status'] ?? 1),
             'image'                  => $img,
             'image_url'              => $img,
+            'hover_image'            => $hoverImg,
             'get_thumb'              => $img ? (object) ['file_url' => $img, '_is_api' => true] : null,
             'get_image'              => $img ? (object) ['file_url' => $img, '_is_api' => true] : null,
+            'get_hover'              => $hoverImg ? (object) ['file_url' => $hoverImg, '_is_api' => true] : null,
             'image_gallery'          => $gallery,
             'images'                 => $gallery,
             'gallery_images'         => !empty($gallery) ? $gallery : null,
+            'size_chart'             => $sizeChart,
+            'get_size_chart'         => $sizeChart ? (object) ['file_url' => $sizeChart, '_is_api' => true] : null,
+            'get_choice_attributes'  => $getChoiceAttributes,
+            'get_categories'         => $categoriesList,
             'attributes'             => $attributes,
             'get_product_attributes' => collect($variants),
             'get_attributes'         => collect($variants),
